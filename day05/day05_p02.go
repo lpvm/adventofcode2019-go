@@ -1,0 +1,166 @@
+package main
+
+import (
+	"fmt"
+	"io/ioutil"
+	"log"
+	"strconv"
+	"strings"
+)
+
+func main() {
+	f, err := ioutil.ReadFile("input.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	ss := strings.TrimRight(string(f), "\n")
+	s := strings.Split(ss, ",")
+	opcodes := []int{}
+	for _, v := range s {
+		i, err := strconv.Atoi(v)
+		if err != nil {
+			continue
+		}
+		opcodes = append(opcodes, i)
+	}
+
+	output := []int{}
+	i := 0
+	for {
+		// opcode: the two digits on the right
+		// counting from right:
+		// 3rd, 4th and possibly 5th digit: parameter codes
+		// 0: as in day02, is a position mode
+		// 1: immediate mode
+		// 1002,4,3,4,33
+		if opcodes[i] == 99 {
+			break
+		}
+		v1, v2 := 0, 0
+		op := ""
+		sopcode := strconv.Itoa(opcodes[i])
+		lenop := len(sopcode)
+
+		if opcodes[i] > 99 {
+			op = sopcode[lenop-2:]
+			param1 := sopcode[lenop-3 : lenop-2]
+			if param1 == "0" {
+				v1 = opcodes[opcodes[i+1]]
+			} else {
+				v1 = opcodes[i+1]
+			}
+			param2 := "0"
+			if lenop > 3 {
+				param2 = sopcode[lenop-4 : lenop-3]
+			}
+			if param2 == "0" && op != "04" {
+				v2 = opcodes[opcodes[i+2]]
+			} else {
+				v2 = opcodes[i+2]
+			}
+		}
+
+		if opcodes[i] == 1 {
+			opcodes[opcodes[i+3]] = opcodes[opcodes[i+1]] + opcodes[opcodes[i+2]]
+			i += 4
+		} else if op == "01" {
+			opcodes[opcodes[i+3]] = v1 + v2
+			i += 4
+		} else if opcodes[i] == 2 {
+			opcodes[opcodes[i+3]] = opcodes[opcodes[i+1]] * opcodes[opcodes[i+2]]
+			i += 4
+		} else if op == "02" {
+			opcodes[opcodes[i+3]] = v1 * v2
+			i += 4
+		} else if opcodes[i] == 3 {
+			// input: 5
+			opcodes[opcodes[i+1]] = 5
+			i += 2
+		} else if opcodes[i] == 4 {
+			output = append(output, opcodes[opcodes[i+1]])
+			i += 2
+		} else if op == "04" {
+			output = append(output, v1)
+			i += 2
+		} else if opcodes[i] == 5 {
+			// jump-if-true
+			if opcodes[opcodes[i+1]] != 0 {
+				i = opcodes[opcodes[i+2]]
+			} else {
+				i += 3
+			}
+		} else if op == "05" {
+			if v1 != 0 {
+				i = v2
+			} else {
+				i += 3
+			}
+		} else if opcodes[i] == 6 {
+			// jump-if-false
+			if opcodes[opcodes[i+1]] == 0 {
+				i = opcodes[opcodes[i+2]]
+			} else {
+				i += 3
+			}
+		} else if op == "06" {
+			if v1 == 0 {
+				i = v2
+			} else {
+				i += 3
+			}
+		} else if opcodes[i] == 7 {
+			// is less than
+			if opcodes[opcodes[i+1]] < opcodes[opcodes[i+2]] {
+				opcodes[opcodes[i+3]] = 1
+			} else {
+				opcodes[opcodes[i+3]] = 0
+			}
+			i += 4
+		} else if op == "07" {
+			if v1 < v2 {
+				opcodes[opcodes[i+3]] = 1
+			} else {
+				opcodes[opcodes[i+3]] = 0
+			}
+			i += 4
+		} else if opcodes[i] == 8 {
+			if opcodes[opcodes[i+1]] == opcodes[opcodes[i+2]] {
+				opcodes[opcodes[i+3]] = 1
+			} else {
+				opcodes[opcodes[i+3]] = 0
+			}
+			i += 4
+		} else if op == "08" {
+			if v1 == v2 {
+				opcodes[opcodes[i+3]] = 1
+			} else {
+				opcodes[opcodes[i+3]] = 0
+			}
+			i += 4
+		}
+	}
+	fmt.Println("output: ", output)
+}
+
+// opcodes
+// 1: add the numbers in the positions of the next two values
+// 2: same thing, but multiply instead of adding
+// 99: halt immediately
+// 3: takes a single integer as input and saves it to the position given by its
+//    only parameter.
+//    For example, the instruction 3,50 would take an input value and store it
+//    at address 50.
+// 4: outputs the value of its only parameter.
+// 	  For example, the instruction 4,50 would output the value at address 50.
+// 5: is jump-if-true
+// 		if the first parameter is non-zero, it sets the instruction pointer to
+// 		the value from the second parameter. Otherwise, it does nothing.
+// 6: is jump-if-false:
+// 		if the first parameter is zero, it sets the instruction pointer to the
+// 		value from the second parameter. Otherwise, it does nothing.
+// 7: is less than:
+// 		if the first parameter is less than the second parameter, it stores 1
+// 		in the position given by the third parameter. Otherwise, it stores 0.
+// 8: is equals:
+// 		if the first parameter is equal to the second parameter, it stores 1 in
+// 		the position given by the third parameter. Otherwise, it stores 0.
